@@ -1,8 +1,12 @@
 name: Build HWPX font-fixed document
 
 on:
-  pull_request:
+  push:
     branches: [main]
+    paths:
+      - build_hwpx.py
+      - content/**
+      - .github/workflows/build-hwpx.yml
 
 permissions:
   contents: write
@@ -11,21 +15,21 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out PR branch
+      - name: Check out repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
 
       - name: Build HWPX
         run: |
           if [ ! -f build_hwpx.py ]; then
-            echo "No build script on this branch"
-            exit 1
+            echo "Build script not added yet; workflow setup commit only."
+            exit 0
           fi
           python3 build_hwpx.py
 
       - name: Validate output
+        if: hashFiles('build_hwpx.py') != ''
         run: |
           test -s generated/kidney_external_therapy_KoPubWorld.hwpx
           python3 - <<'PY'
@@ -40,7 +44,8 @@ jobs:
           print('HWPX validation passed')
           PY
 
-      - name: Commit generated document to PR branch
+      - name: Commit generated document
+        if: hashFiles('build_hwpx.py') != ''
         run: |
           git config user.name "ChatGPT HWPX Builder"
           git config user.email "actions@users.noreply.github.com"
@@ -48,6 +53,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No generated changes"
           else
-            git commit -m "build: generate KoPubWorld HWPX"
-            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+            git commit -m "build: generate KoPubWorld HWPX [skip ci]"
+            git push origin main
           fi
